@@ -15,45 +15,86 @@ const subjects = ['BM','BI','BMK','ACC','AM','SEJ','CHE','EKO','GEO','RBT','MM',
 function toast(msg){ const el=$('#toast'); el.textContent=msg; el.classList.add('show'); setTimeout(()=>el.classList.remove('show'),3000); }
 function todayKL(){return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kuala_Lumpur',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());}
 function authModal(){
-  $('#accountModal').innerHTML=`<div class="modal" style="max-width:500px"><div class="biometric-mark">🔐 ⭐</div><h2>安全登入星星计划</h2><p>学生使用已验证的电话号码，教师使用获授权的邮箱。登入状态会保存在本设备。</p>
-    <div class="fieldgroup"><label>登入身份</label><select class="field" id="authKind" style="width:100%"><option value="student">学生 / 注册学生</option><option value="teacher">老师</option></select></div>
-    <div id="studentAuthFields"><div class="fieldgroup" style="margin-top:10px"><label>华文全名（首次注册填写）</label><input class="field" id="authName" placeholder="请输入学生华文全名" style="width:100%"></div><div class="fieldgroup" style="margin-top:10px"><label>年级（首次注册填写）</label><select class="field" id="authGrade" style="width:100%"><option value="">请选择年级</option><option>中一</option><option>中二</option><option>中三</option><option>中四</option><option>中五</option><option>中六</option></select></div><div class="fieldgroup" style="margin-top:10px"><label>已验证的电话号码</label><input class="field" id="authPhone" type="tel" placeholder="例如：+60123456789" style="width:100%"></div></div>
+  $('#accountModal').innerHTML=`<div class="modal" style="max-width:500px"><div class="biometric-mark">🔐 ⭐</div><h2>学生注册与安全登入</h2><p>首次注册后系统自动生成学号。下次可用“华语全名＋学号＋已验证电话”登入；同一设备会保留登入状态。</p>
+    <div class="fieldgroup"><label>登入身份</label><select class="field" id="authKind" style="width:100%"><option value="student">学生</option><option value="teacher">老师</option></select></div>
+    <div id="studentAuthFields">
+      <div class="fieldgroup" style="margin-top:10px"><label>学生操作</label><select class="field" id="studentMode" style="width:100%"><option value="register">首次注册</option><option value="student-id">已有学号登入</option><option value="recover-id">忘记学号？找回学号</option></select></div>
+      <div class="fieldgroup" id="authNameGroup" style="margin-top:10px"><label>华语全名</label><input class="field" id="authName" autocomplete="name" placeholder="请输入学生华语全名" style="width:100%"></div>
+      <div class="fieldgroup" id="authGradeGroup" style="margin-top:10px"><label>年级</label><select class="field" id="authGrade" style="width:100%"><option value="">请选择年级</option><option>Peralihan</option><option>Form 1</option><option>Form 2</option><option>Form 3</option><option>Form 4</option><option>Form 5</option></select></div>
+      <div class="fieldgroup" id="authStudentNumberGroup" style="display:none;margin-top:10px"><label>学号</label><input class="field" id="authStudentNumber" autocomplete="username" placeholder="请输入注册后获得的学号" style="width:100%"></div>
+      <div class="fieldgroup" style="margin-top:10px"><label>已验证的电话号码</label><input class="field" id="authPhone" type="tel" autocomplete="tel" placeholder="例如：+60123456789" style="width:100%"></div>
+      <div class="fieldgroup" style="margin-top:10px"><label>验证码发送方式</label><select class="field" id="authChannel" style="width:100%"><option value="sms">短信 SMS</option><option value="whatsapp">WhatsApp</option></select></div>
+    </div>
     <div id="teacherAuthFields" style="display:none"><div class="fieldgroup" style="margin-top:10px"><label>教师授权邮箱</label><input class="field" id="authEmail" type="email" placeholder="输入登记的教师邮箱" style="width:100%"></div><div class="login-note">请从邮箱打开 Supabase 发出的安全登录链接。总管理员：Ms Crystal。</div></div>
-    <div id="otpFields" style="display:none;margin-top:10px"><div class="fieldgroup"><label>短信验证码</label><input class="field" id="authOtp" inputmode="numeric" autocomplete="one-time-code" placeholder="输入收到的验证码" style="width:100%"></div></div>
-    <div class="login-note" id="authMsg">学生首次注册时，系统会在电话号码验证后生成学号，并等待管理员批准。系统不收集身份证号码。</div>
-    <div class="modal-actions"><button class="btn btn-outline" id="authClose">关闭</button><button class="btn" id="authSend">发送安全登录链接 / 验证码</button><button class="btn" id="authVerify" style="display:none">验证并登入</button></div></div>`;
-  $('#authKind').onchange=()=>{const isStudent=$('#authKind').value==='student';$('#studentAuthFields').style.display=isStudent?'block':'none';$('#teacherAuthFields').style.display=isStudent?'none':'block';$('#otpFields').style.display='none';$('#authSend').style.display='';$('#authVerify').style.display='none';$('#authMsg').textContent=isStudent?'首次注册请填写华文全名、年级和电话号码。':'只允许已登记在教师名单中的邮箱登入。'};
+    <div id="otpFields" style="display:none;margin-top:10px"><div class="fieldgroup"><label>一次性验证码</label><input class="field" id="authOtp" inputmode="numeric" autocomplete="one-time-code" placeholder="输入收到的验证码" style="width:100%"></div></div>
+    <div class="login-note" id="authMsg">学生首次注册请填写华语全名、年级和电话号码。验证电话后，系统自动生成学号；账号仍需管理员确认后才能签到和申请奖励星。</div>
+    <div class="login-note" id="studentIdResult" style="display:none"></div>
+    <div class="modal-actions"><button class="btn btn-outline" id="authClose">关闭</button><button class="btn" id="authSend">发送验证码</button><button class="btn" id="authVerify" style="display:none">验证并登入</button></div></div>`;
+  const updateMode=()=>{
+    const mode=$('#studentMode').value, isRegister=mode==='register', isIdLogin=mode==='student-id';
+    $('#authNameGroup').style.display=mode==='recover-id'?'none':'';
+    $('#authGradeGroup').style.display=isRegister?'':'none';
+    $('#authStudentNumberGroup').style.display=isIdLogin?'':'none';
+    $('#authMsg').textContent=isRegister?'首次注册请填写华语全名、年级和电话号码。验证电话后，系统自动生成学号；账号仍需管理员确认后才能签到和申请奖励星。':isIdLogin?'请填写已登记的华语全名、学号和电话号码，并通过电话验证码验证。':'请输入注册时的电话号码并验证；系统会显示对应的学号。';
+    $('#studentIdResult').style.display='none';$('#otpFields').style.display='none';$('#authVerify').style.display='none';$('#authSend').style.display='';
+  };
+  $('#studentMode').onchange=updateMode;
+  $('#authKind').onchange=()=>{const isStudent=$('#authKind').value==='student';$('#studentAuthFields').style.display=isStudent?'block':'none';$('#teacherAuthFields').style.display=isStudent?'none':'block';$('#otpFields').style.display='none';$('#authSend').style.display='';$('#authVerify').style.display='none';$('#authMsg').textContent=isStudent?'请按页面提示注册、登入或找回学号。':'只允许已登记在教师授权名单中的邮箱登入。'};
   $('#authClose').onclick=()=>$('#accountModal').classList.remove('show');
   $('#authSend').onclick=sendLogin;
   $('#authVerify').onclick=verifyStudent;
 }
+function normalizePhone(v){return String(v||'').replace(/[\s()-]/g,'')}
 async function sendLogin(){
  try{
   const kind=$('#authKind').value;
   if(kind==='student'){
-    const phone=$('#authPhone').value.replace(/[\s()-]/g,'');
-    const name=$('#authName').value.trim(), grade=$('#authGrade').value;
+    const mode=$('#studentMode').value, phone=normalizePhone($('#authPhone').value);
+    const name=$('#authName').value.trim(), grade=$('#authGrade').value, studentNumber=$('#authStudentNumber').value.trim().toUpperCase();
     if(!/^\+[1-9]\d{7,14}$/.test(phone)){toast('电话号码请使用国际格式，例如 +60123456789');return}
-    const {error}=await sb.auth.signInWithOtp({phone,options:{channel:'sms',data:{full_name:name,grade}}});
-    if(error)throw error;
-    pendingLogin={kind,phone};$('#otpFields').style.display='block';$('#authVerify').style.display='';$('#authSend').textContent='重新发送验证码';$('#authMsg').textContent='验证码已发送至你的手机。若为首次注册，验证后会生成学号并等待总管理员批准。';toast('验证码已发送');
+    if(mode==='register'&&(!name||!grade)){toast('请填写华语全名并选择年级');return}
+    if(mode==='student-id'&&(!name||!studentNumber)){toast('请填写华语全名和学号');return}
+    const options={channel:$('#authChannel').value,shouldCreateUser:mode==='register'};
+    if(mode==='register') options.data={full_name:name,grade};
+    const {error}=await sb.auth.signInWithOtp({phone,options}); if(error)throw error;
+    pendingLogin={kind,mode,flow:mode,phone,name,grade,studentNumber,channel:$('#authChannel').value};
+    $('#otpFields').style.display='block';$('#authVerify').style.display='';$('#authSend').textContent='重新发送验证码';
+    $('#authMsg').textContent=`验证码已通过${$('#authChannel').selectedOptions[0].textContent}发送至该电话号码。`;
+    toast('验证码已发送');
   }else{
     const email=$('#authEmail').value.trim().toLowerCase(); if(!email){toast('请输入教师邮箱');return}
-    const {error}=await sb.auth.signInWithOtp({email,options:{emailRedirectTo:location.origin}});
-    if(error)throw error;
+    const {error}=await sb.auth.signInWithOtp({email,options:{emailRedirectTo:location.origin}});if(error)throw error;
     pendingLogin={kind,email};$('#authMsg').textContent='登录链接已发送。请打开邮箱中的链接返回此页面；邮箱必须在教师授权名单内。';toast('安全登录链接已发送');
   }
  }catch(e){console.error(e);toast(e.message||'无法发送登录信息，请检查 Supabase Auth 设置')}
 }
 async function verifyStudent(){
- try{const token=$('#authOtp').value.trim();if(!pendingLogin?.phone||token.length<4){toast('请输入短信验证码');return}
-  const {error}=await sb.auth.verifyOtp({phone:pendingLogin.phone,token,type:'sms'}); if(error)throw error;
-  $('#accountModal').classList.remove('show'); toast('登入成功'); await loadSession();
+ try{
+  const attempt=pendingLogin,token=$('#authOtp').value.trim();if(!attempt?.phone||token.length<4){toast('请输入收到的验证码');return}
+  const {error}=await sb.auth.verifyOtp({phone:attempt.phone,token,type:attempt.channel==='whatsapp'?'whatsapp':'sms'});if(error)throw error;
+  const {data:{user:authUser},error:userError}=await sb.auth.getUser();if(userError||!authUser)throw userError||new Error('登入验证失败');
+  const {data:record,error:profileError}=await sb.from('profiles').select('full_name,grade,phone,student_number,role,approved').eq('id',authUser.id).single();
+  if(profileError||!record)throw profileError||new Error('找不到学生资料');
+  if(record.role!=='student'||normalizePhone(record.phone)!==attempt.phone){await sb.auth.signOut();throw new Error('电话号码与学生登记资料不符')}
+  if(attempt.mode==='register'&&(record.full_name.trim()!==attempt.name.trim()||record.grade!==attempt.grade)){await sb.auth.signOut();throw new Error('此电话号码已登记其他学生，请选择“已有学号登入”或“找回学号”')}
+  if(attempt.mode==='student-id'&&(record.full_name.trim()!==attempt.name.trim()||String(record.student_number||'').toUpperCase()!==attempt.studentNumber)){await sb.auth.signOut();throw new Error('华语全名或学号不正确')}
+  $('#accountModal').classList.remove('show');await loadSession();
+  if(attempt.mode==='recover-id'){
+    $('#authMsg').textContent='电话号码验证成功。请记下或截图保存你的学号。';
+    $('#studentIdResult').innerHTML=`你的系统学号：<b>${esc(record.student_number||'尚未生成')}</b><br>年级：${esc(record.grade||'')}`;$('#studentIdResult').style.display='block';$('#otpFields').style.display='none';$('#authSend').style.display='none';$('#authVerify').style.display='none';$('#accountModal').classList.add('show');
+    pendingLogin=null;return;
+  }
+  if(attempt.mode==='register'){
+    $('#authMsg').textContent='注册成功。请记下或截图保存系统学号；管理员确认后即可使用签到和申请奖励星。';
+    $('#studentIdResult').innerHTML=`你的系统学号：<b>${esc(record.student_number||'资料建立中')}</b><br>年级：${esc(record.grade||'')}`;$('#studentIdResult').style.display='block';$('#authSend').style.display='none';$('#authVerify').style.display='none';$('#accountModal').classList.add('show');
+    pendingLogin=null;return;
+  }
+  pendingLogin=null;toast('登入成功');
  }catch(e){console.error(e);toast(e.message||'验证码无效或已过期')}
 }
 function setRoleUI(){
  const isStudent=profile?.role==='student', isTeacher=['teacher','admin'].includes(profile?.role);
- document.body.classList.add('auth-ready');
+ document.body.classList.add('auth-ready');$('#accountModal').classList.remove('show');
  $('#rolePill').textContent=profile?.role==='admin'?'总管理员':profile?.role==='teacher'?'科目老师':'学生账户';
  $('#avatar').textContent=(profile?.full_name||'?').slice(0,1);
  $('#loginBtn').textContent='退出登入'; $('#loginBtn').onclick=async()=>{await sb.auth.signOut();location.reload()};
@@ -96,10 +137,10 @@ async function refreshData(){
  }
 }
 async function renderStudentApprovals(){
- const {data,error}=await sb.from('profiles').select('id,full_name,grade,phone,student_number,created_at').eq('role','student').eq('approved',false).order('created_at');
+ const {data,error}=await sb.from('profiles').select('id,full_name,grade,phone,student_number,approved,created_at').eq('role','student').order('created_at');
  if(error)throw error;
  const target=$('#studentApprovalRows'); if(!target)return;
- target.innerHTML=(data||[]).map(s=>`<tr><td class="student">${esc(s.full_name)}</td><td>${esc(s.grade)}</td><td>${esc(s.phone)}</td><td>${esc(s.student_number)}</td><td><button class="btn btn-sm" data-approve-student="${s.id}">确认学生</button></td></tr>`).join('')||'<tr><td colspan="5" class="empty">目前没有待确认的学生登记</td></tr>';
+ target.innerHTML=(data||[]).map(s=>`<tr><td class="student">${esc(s.full_name)}</td><td>${esc(s.grade)}</td><td>${esc(s.phone)}</td><td>${esc(s.student_number)}</td><td>${s.approved?'<span class="status ok">已确认</span>':'<button class="btn btn-sm" data-approve-student="'+s.id+'">确认学生</button>'}</td></tr>`).join('')||'<tr><td colspan="5" class="empty">目前还没有学生注册</td></tr>';
  target.querySelectorAll('[data-approve-student]').forEach(b=>b.onclick=async()=>{const {error}=await sb.rpc('approve_student',{p_student_id:b.dataset.approveStudent});if(error){toast(error.message);return}toast('学生账号已确认');await renderStudentApprovals()});
 }
 function profileSubjects(){const own=teachers.find(t=>t.user_id===user.id);return own?.subjects||[]}
